@@ -132,6 +132,7 @@ func (n *AlertNode) Build(a *pipeline.AlertNode) (ast.Node, error) {
 
 	for _, h := range a.SlackHandlers {
 		n.Dot("slack").
+			Dot("workspace", h.Workspace).
 			Dot("channel", h.Channel).
 			Dot("username", h.Username).
 			Dot("iconEmoji", h.IconEmoji)

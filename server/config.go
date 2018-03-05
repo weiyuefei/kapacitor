@@ -80,22 +80,21 @@ type Config struct {
 	UDP      []udp.Config      `toml:"udp"`
 
 	// Alert handlers
-	Alerta     alerta.Config     `toml:"alerta" override:"alerta"`
-	HipChat    hipchat.Config    `toml:"hipchat" override:"hipchat"`
-	MQTT       mqtt.Configs      `toml:"mqtt" override:"mqtt,element-key=name"`
-	OpsGenie   opsgenie.Config   `toml:"opsgenie" override:"opsgenie"`
-	OpsGenie2  opsgenie2.Config  `toml:"opsgenie2" override:"opsgenie2"`
-	PagerDuty  pagerduty.Config  `toml:"pagerduty" override:"pagerduty"`
-	PagerDuty2 pagerduty2.Config `toml:"pagerduty2" override:"pagerduty2"`
-	Pushover   pushover.Config   `toml:"pushover" override:"pushover"`
-	HTTPPost   httppost.Configs  `toml:"httppost" override:"httppost,element-key=endpoint"`
-	SMTP       smtp.Config       `toml:"smtp" override:"smtp"`
-	SNMPTrap   snmptrap.Config   `toml:"snmptrap" override:"snmptrap"`
-	Sensu      sensu.Config      `toml:"sensu" override:"sensu"`
-	Slack      slack.Config      `toml:"slack" override:"slack"`
-	Talk       talk.Config       `toml:"talk" override:"talk"`
-	Telegram   telegram.Config   `toml:"telegram" override:"telegram"`
-	VictorOps  victorops.Config  `toml:"victorops" override:"victorops"`
+	Alerta    alerta.Config    `toml:"alerta" override:"alerta"`
+	HipChat   hipchat.Config   `toml:"hipchat" override:"hipchat"`
+	MQTT      mqtt.Configs     `toml:"mqtt" override:"mqtt,element-key=name"`
+	OpsGenie  opsgenie.Config  `toml:"opsgenie" override:"opsgenie"`
+	OpsGenie2 opsgenie2.Config `toml:"opsgenie2" override:"opsgenie2"`
+	PagerDuty pagerduty.Config `toml:"pagerduty" override:"pagerduty"`
+	Pushover  pushover.Config  `toml:"pushover" override:"pushover"`
+	HTTPPost  httppost.Configs `toml:"httppost" override:"httppost,element-key=endpoint"`
+	SMTP      smtp.Config      `toml:"smtp" override:"smtp"`
+	SNMPTrap  snmptrap.Config  `toml:"snmptrap" override:"snmptrap"`
+	Sensu     sensu.Config     `toml:"sensu" override:"sensu"`
+	Slack     slack.Configs    `toml:"slack" override:"slack,element-key=workspace"`
+	Talk      talk.Config      `toml:"talk" override:"talk"`
+	Telegram  telegram.Config  `toml:"telegram" override:"telegram"`
+	VictorOps victorops.Config `toml:"victorops" override:"victorops"`
 
 	// Discovery for scraping
 	Scraper         []scraper.Config          `toml:"scraper" override:"scraper,element-key=name"`
@@ -157,7 +156,7 @@ func NewConfig() *Config {
 	c.HTTPPost = httppost.Configs{httppost.NewConfig()}
 	c.SMTP = smtp.NewConfig()
 	c.Sensu = sensu.NewConfig()
-	c.Slack = slack.NewConfig()
+	c.Slack = slack.Configs{slack.NewConfig()}
 	c.Talk = talk.NewConfig()
 	c.SNMPTrap = snmptrap.NewConfig()
 	c.Telegram = telegram.NewConfig()

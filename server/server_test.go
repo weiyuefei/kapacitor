@@ -51,6 +51,7 @@ import (
 	"github.com/influxdata/kapacitor/services/pagerduty2/pagerduty2test"
 	"github.com/influxdata/kapacitor/services/pushover/pushovertest"
 	"github.com/influxdata/kapacitor/services/sensu/sensutest"
+	"github.com/influxdata/kapacitor/services/slack"
 	"github.com/influxdata/kapacitor/services/slack/slacktest"
 	"github.com/influxdata/kapacitor/services/smtp/smtptest"
 	"github.com/influxdata/kapacitor/services/snmptrap/snmptraptest"
@@ -7670,13 +7671,24 @@ func TestServer_UpdateConfig(t *testing.T) {
 		{
 			section: "slack",
 			setDefaults: func(c *server.Config) {
-				c.Slack.Global = true
+				cfg := &slack.Config{
+					Global:   true,
+					Default:  true,
+					Username: slack.DefaultUsername,
+				}
+
+				c.Slack = slack.Configs{
+					*cfg,
+				}
 			},
+			element: "",
 			expDefaultSection: client.ConfigSection{
 				Link: client.Link{Relation: client.Self, Href: "/kapacitor/v1/config/slack"},
 				Elements: []client.ConfigElement{{
 					Link: client.Link{Relation: client.Self, Href: "/kapacitor/v1/config/slack/"},
 					Options: map[string]interface{}{
+						"workspace":            "",
+						"default":              true,
 						"channel":              "",
 						"enabled":              false,
 						"global":               true,
@@ -7697,6 +7709,8 @@ func TestServer_UpdateConfig(t *testing.T) {
 			expDefaultElement: client.ConfigElement{
 				Link: client.Link{Relation: client.Self, Href: "/kapacitor/v1/config/slack/"},
 				Options: map[string]interface{}{
+					"workspace":            "",
+					"default":              true,
 					"channel":              "",
 					"enabled":              false,
 					"global":               true,
@@ -7716,24 +7730,29 @@ func TestServer_UpdateConfig(t *testing.T) {
 			updates: []updateAction{
 				{
 					updateAction: client.ConfigUpdateAction{
-						Set: map[string]interface{}{
-							"enabled": true,
-							"global":  false,
-							"channel": "#general",
-							"url":     "http://slack.example.com/secret-token",
+						Add: map[string]interface{}{
+							"workspace": "company_private",
+							"enabled":   true,
+							"global":    false,
+							"channel":   "#general",
+							"username":  slack.DefaultUsername,
+							"url":       "http://slack.example.com/secret-token",
 						},
 					},
+					element: "company_private",
 					expSection: client.ConfigSection{
 						Link: client.Link{Relation: client.Self, Href: "/kapacitor/v1/config/slack"},
 						Elements: []client.ConfigElement{{
 							Link: client.Link{Relation: client.Self, Href: "/kapacitor/v1/config/slack/"},
 							Options: map[string]interface{}{
-								"channel":              "#general",
-								"enabled":              true,
-								"global":               false,
+								"workspace":            "",
+								"default":              true,
+								"channel":              "",
+								"enabled":              false,
+								"global":               true,
 								"icon-emoji":           "",
 								"state-changes-only":   false,
-								"url":                  true,
+								"url":                  false,
 								"username":             "kapacitor",
 								"ssl-ca":               "",
 								"ssl-cert":             "",
@@ -7743,18 +7762,336 @@ func TestServer_UpdateConfig(t *testing.T) {
 							Redacted: []string{
 								"url",
 							},
-						}},
+						},
+							{
+								Link: client.Link{Relation: client.Self, Href: "/kapacitor/v1/config/slack/company_private"},
+								Options: map[string]interface{}{
+									"workspace":            "company_private",
+									"channel":              "#general",
+									"default":              false,
+									"enabled":              true,
+									"global":               false,
+									"icon-emoji":           "",
+									"state-changes-only":   false,
+									"url":                  true,
+									"username":             "kapacitor",
+									"ssl-ca":               "",
+									"ssl-cert":             "",
+									"ssl-key":              "",
+									"insecure-skip-verify": false,
+								},
+								Redacted: []string{
+									"url",
+								},
+							}},
 					},
 					expElement: client.ConfigElement{
-						Link: client.Link{Relation: client.Self, Href: "/kapacitor/v1/config/slack/"},
+						Link: client.Link{Relation: client.Self, Href: "/kapacitor/v1/config/slack/company_private"},
 						Options: map[string]interface{}{
+							"workspace":            "company_private",
 							"channel":              "#general",
+							"default":              false,
 							"enabled":              true,
 							"global":               false,
 							"icon-emoji":           "",
 							"state-changes-only":   false,
 							"url":                  true,
 							"username":             "kapacitor",
+							"ssl-ca":               "",
+							"ssl-cert":             "",
+							"ssl-key":              "",
+							"insecure-skip-verify": false,
+						},
+						Redacted: []string{
+							"url",
+						},
+					},
+				},
+				{
+					updateAction: client.ConfigUpdateAction{
+						Add: map[string]interface{}{
+							"workspace": "company_public",
+							"enabled":   true,
+							"global":    false,
+							"channel":   "#general",
+							"username":  slack.DefaultUsername,
+							"url":       "http://slack.example.com/secret-token",
+						},
+					},
+					element: "company_public",
+					expSection: client.ConfigSection{
+						Link: client.Link{Relation: client.Self, Href: "/kapacitor/v1/config/slack"},
+						Elements: []client.ConfigElement{
+							{
+								Link: client.Link{Relation: client.Self, Href: "/kapacitor/v1/config/slack/"},
+								Options: map[string]interface{}{
+									"workspace":            "",
+									"default":              true,
+									"channel":              "",
+									"enabled":              false,
+									"global":               true,
+									"icon-emoji":           "",
+									"state-changes-only":   false,
+									"url":                  false,
+									"username":             "kapacitor",
+									"ssl-ca":               "",
+									"ssl-cert":             "",
+									"ssl-key":              "",
+									"insecure-skip-verify": false,
+								},
+								Redacted: []string{
+									"url",
+								},
+							},
+							{
+								Link: client.Link{Relation: client.Self, Href: "/kapacitor/v1/config/slack/company_private"},
+								Options: map[string]interface{}{
+									"workspace":            "company_private",
+									"channel":              "#general",
+									"default":              false,
+									"enabled":              true,
+									"global":               false,
+									"icon-emoji":           "",
+									"state-changes-only":   false,
+									"url":                  true,
+									"username":             "kapacitor",
+									"ssl-ca":               "",
+									"ssl-cert":             "",
+									"ssl-key":              "",
+									"insecure-skip-verify": false,
+								},
+								Redacted: []string{
+									"url",
+								},
+							},
+							{
+								Link: client.Link{Relation: client.Self, Href: "/kapacitor/v1/config/slack/company_public"},
+								Options: map[string]interface{}{
+									"workspace":            "company_public",
+									"channel":              "#general",
+									"default":              false,
+									"enabled":              true,
+									"global":               false,
+									"icon-emoji":           "",
+									"state-changes-only":   false,
+									"url":                  true,
+									"username":             "kapacitor",
+									"ssl-ca":               "",
+									"ssl-cert":             "",
+									"ssl-key":              "",
+									"insecure-skip-verify": false,
+								},
+								Redacted: []string{
+									"url",
+								},
+							},
+						},
+					},
+					expElement: client.ConfigElement{
+						Link: client.Link{Relation: client.Self, Href: "/kapacitor/v1/config/slack/company_public"},
+						Options: map[string]interface{}{
+							"workspace":            "company_public",
+							"channel":              "#general",
+							"default":              false,
+							"enabled":              true,
+							"global":               false,
+							"icon-emoji":           "",
+							"state-changes-only":   false,
+							"url":                  true,
+							"username":             "kapacitor",
+							"ssl-ca":               "",
+							"ssl-cert":             "",
+							"ssl-key":              "",
+							"insecure-skip-verify": false,
+						},
+						Redacted: []string{
+							"url",
+						},
+					},
+				},
+				{
+					updateAction: client.ConfigUpdateAction{
+						Set: map[string]interface{}{
+							"enabled":  false,
+							"username": "testbot",
+						},
+					},
+					element: "company_public",
+					expSection: client.ConfigSection{
+						Link: client.Link{Relation: client.Self, Href: "/kapacitor/v1/config/slack"},
+						Elements: []client.ConfigElement{
+							{
+								Link: client.Link{Relation: client.Self, Href: "/kapacitor/v1/config/slack/"},
+								Options: map[string]interface{}{
+									"workspace":            "",
+									"default":              true,
+									"channel":              "",
+									"enabled":              false,
+									"global":               true,
+									"icon-emoji":           "",
+									"state-changes-only":   false,
+									"url":                  false,
+									"username":             "kapacitor",
+									"ssl-ca":               "",
+									"ssl-cert":             "",
+									"ssl-key":              "",
+									"insecure-skip-verify": false,
+								},
+								Redacted: []string{
+									"url",
+								},
+							},
+							{
+								Link: client.Link{Relation: client.Self, Href: "/kapacitor/v1/config/slack/company_private"},
+								Options: map[string]interface{}{
+									"workspace":            "company_private",
+									"channel":              "#general",
+									"default":              false,
+									"enabled":              true,
+									"global":               false,
+									"icon-emoji":           "",
+									"state-changes-only":   false,
+									"url":                  true,
+									"username":             "kapacitor",
+									"ssl-ca":               "",
+									"ssl-cert":             "",
+									"ssl-key":              "",
+									"insecure-skip-verify": false,
+								},
+								Redacted: []string{
+									"url",
+								},
+							},
+							{
+								Link: client.Link{Relation: client.Self, Href: "/kapacitor/v1/config/slack/company_public"},
+								Options: map[string]interface{}{
+									"workspace":            "company_public",
+									"channel":              "#general",
+									"default":              false,
+									"enabled":              false,
+									"global":               false,
+									"icon-emoji":           "",
+									"state-changes-only":   false,
+									"url":                  true,
+									"username":             "testbot",
+									"ssl-ca":               "",
+									"ssl-cert":             "",
+									"ssl-key":              "",
+									"insecure-skip-verify": false,
+								},
+								Redacted: []string{
+									"url",
+								},
+							},
+						},
+					},
+					expElement: client.ConfigElement{
+						Link: client.Link{Relation: client.Self, Href: "/kapacitor/v1/config/slack/company_public"},
+						Options: map[string]interface{}{
+							"workspace":            "company_public",
+							"channel":              "#general",
+							"default":              false,
+							"enabled":              false,
+							"global":               false,
+							"icon-emoji":           "",
+							"state-changes-only":   false,
+							"url":                  true,
+							"username":             "testbot",
+							"ssl-ca":               "",
+							"ssl-cert":             "",
+							"ssl-key":              "",
+							"insecure-skip-verify": false,
+						},
+						Redacted: []string{
+							"url",
+						},
+					},
+				},
+				{
+					updateAction: client.ConfigUpdateAction{
+						Delete: []string{"username"},
+					},
+					element: "company_public",
+					expSection: client.ConfigSection{
+						Link: client.Link{Relation: client.Self, Href: "/kapacitor/v1/config/slack"},
+						Elements: []client.ConfigElement{
+							{
+								Link: client.Link{Relation: client.Self, Href: "/kapacitor/v1/config/slack/"},
+								Options: map[string]interface{}{
+									"workspace":            "",
+									"default":              true,
+									"channel":              "",
+									"enabled":              false,
+									"global":               true,
+									"icon-emoji":           "",
+									"state-changes-only":   false,
+									"url":                  false,
+									"username":             "kapacitor",
+									"ssl-ca":               "",
+									"ssl-cert":             "",
+									"ssl-key":              "",
+									"insecure-skip-verify": false,
+								},
+								Redacted: []string{
+									"url",
+								},
+							},
+							{
+								Link: client.Link{Relation: client.Self, Href: "/kapacitor/v1/config/slack/company_private"},
+								Options: map[string]interface{}{
+									"workspace":            "company_private",
+									"channel":              "#general",
+									"default":              false,
+									"enabled":              true,
+									"global":               false,
+									"icon-emoji":           "",
+									"state-changes-only":   false,
+									"url":                  true,
+									"username":             "kapacitor",
+									"ssl-ca":               "",
+									"ssl-cert":             "",
+									"ssl-key":              "",
+									"insecure-skip-verify": false,
+								},
+								Redacted: []string{
+									"url",
+								},
+							},
+							{
+								Link: client.Link{Relation: client.Self, Href: "/kapacitor/v1/config/slack/company_public"},
+								Options: map[string]interface{}{
+									"workspace":            "company_public",
+									"channel":              "#general",
+									"default":              false,
+									"enabled":              false,
+									"global":               false,
+									"icon-emoji":           "",
+									"state-changes-only":   false,
+									"url":                  true,
+									"username":             "",
+									"ssl-ca":               "",
+									"ssl-cert":             "",
+									"ssl-key":              "",
+									"insecure-skip-verify": false,
+								},
+								Redacted: []string{
+									"url",
+								},
+							},
+						},
+					},
+					expElement: client.ConfigElement{
+						Link: client.Link{Relation: client.Self, Href: "/kapacitor/v1/config/slack/company_public"},
+						Options: map[string]interface{}{
+							"workspace":            "company_public",
+							"channel":              "#general",
+							"default":              false,
+							"enabled":              false,
+							"global":               false,
+							"icon-emoji":           "",
+							"state-changes-only":   false,
+							"url":                  true,
+							"username":             "",
 							"ssl-ca":               "",
 							"ssl-cert":             "",
 							"ssl-key":              "",
@@ -8489,6 +8826,7 @@ func TestServer_ListServiceTests(t *testing.T) {
 				Link: client.Link{Relation: client.Self, Href: "/kapacitor/v1/service-tests/slack"},
 				Name: "slack",
 				Options: client.ServiceTestOptions{
+					"workspace":  "",
 					"channel":    "",
 					"icon-emoji": "",
 					"level":      "CRITICAL",
@@ -8627,6 +8965,7 @@ func TestServer_ListServiceTests_WithPattern(t *testing.T) {
 				Link: client.Link{Relation: client.Self, Href: "/kapacitor/v1/service-tests/slack"},
 				Name: "slack",
 				Options: client.ServiceTestOptions{
+					"workspace":  "",
 					"channel":    "",
 					"icon-emoji": "",
 					"level":      "CRITICAL",
@@ -9576,8 +9915,8 @@ func TestServer_AlertHandlers(t *testing.T) {
 				ts := slacktest.NewServer()
 				ctxt := context.WithValue(nil, "server", ts)
 
-				c.Slack.Enabled = true
-				c.Slack.URL = ts.URL + "/test/slack/url"
+				c.Slack[0].Enabled = true
+				c.Slack[0].URL = ts.URL + "/test/slack/url"
 				return ctxt, nil
 			},
 			result: func(ctxt context.Context) error {
@@ -11006,8 +11345,8 @@ func TestServer_AlertHandler_MultipleHandlers(t *testing.T) {
 
 	// Configure slack
 	slack := slacktest.NewServer()
-	c.Slack.Enabled = true
-	c.Slack.URL = slack.URL + "/test/slack/url"
+	c.Slack[0].Enabled = true
+	c.Slack[0].URL = slack.URL + "/test/slack/url"
 
 	// Configure victorops
 	vo := victoropstest.NewServer()
