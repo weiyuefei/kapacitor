@@ -22,6 +22,7 @@ import (
 	"github.com/influxdata/kapacitor/services/httppost"
 	"github.com/influxdata/kapacitor/services/influxdb"
 	"github.com/influxdata/kapacitor/services/k8s"
+	"github.com/influxdata/kapacitor/services/kafka"
 	"github.com/influxdata/kapacitor/services/mqtt"
 	"github.com/influxdata/kapacitor/services/opsgenie"
 	"github.com/influxdata/kapacitor/services/opsgenie2"
@@ -406,6 +407,23 @@ func (h *HipChatHandler) WithContext(ctx ...keyvalue.T) hipchat.Diagnostic {
 }
 
 func (h *HipChatHandler) Error(msg string, err error) {
+	h.l.Error(msg, Error(err))
+}
+
+// Kafka handler
+type KafkaHandler struct {
+	l Logger
+}
+
+func (h *KafkaHandler) WithContext(ctx ...keyvalue.T) kafka.Diagnostic {
+	fields := logFieldsFromContext(ctx)
+
+	return &KafkaHandler{
+		l: h.l.With(fields...),
+	}
+}
+
+func (h *KafkaHandler) Error(msg string, err error) {
 	h.l.Error(msg, Error(err))
 }
 
