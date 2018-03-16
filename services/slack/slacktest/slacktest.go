@@ -50,7 +50,6 @@ type Request struct {
 }
 
 type PostData struct {
-	Workspace   string       `json:"workspace"`
 	Channel     string       `json:"channel"`
 	Username    string       `json:"username"`
 	Text        string       `json:"text"`

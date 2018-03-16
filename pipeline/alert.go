@@ -1340,7 +1340,8 @@ type PushoverHandler struct {
 // Example:
 // stream
 //      |alert()
-//          .slack('opencommunity')
+//          .slack()
+//          .workspace('opencommunity')
 //          .channel('#support')
 //
 // send alerts to the opencommunity workspace on the channel '#support'

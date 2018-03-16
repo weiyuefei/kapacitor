@@ -43,8 +43,14 @@ type Config struct {
 }
 
 func NewConfig() Config {
-	return Config{
-		Username: DefaultUsername,
+	c := Config{}
+	c.ApplyDefaults()
+	return c
+}
+
+func (c *Config) ApplyDefaults() {
+	if c.Username == "" {
+		c.Username = DefaultUsername
 	}
 }
 

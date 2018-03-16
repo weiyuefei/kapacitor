@@ -24,42 +24,91 @@ type Diagnostic interface {
 	Error(msg string, err error)
 }
 
+type Workspace struct {
+	mu     sync.RWMutex
+	config Config
+	client *http.Client
+}
+
+func NewWorkspace(c Config) (*Workspace, error) {
+	tlsConfig, err := tlsconfig.Create(c.SSLCA, c.SSLCert, c.SSLKey, c.InsecureSkipVerify)
+	if err != nil {
+		return nil, err
+	}
+
+	cl := &http.Client{
+		Transport: &http.Transport{
+			Proxy:           http.ProxyFromEnvironment,
+			TLSClientConfig: tlsConfig,
+		},
+	}
+
+	return &Workspace{
+		config: c,
+		client: cl,
+	}, nil
+}
+
+func (w *Workspace) Config() Config {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	return w.config
+}
+
+func (w *Workspace) Client() *http.Client {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	return w.client
+}
+
+func (w *Workspace) Update(c Config) error {
+	tlsConfig, err := tlsconfig.Create(c.SSLCA, c.SSLCert, c.SSLKey, c.InsecureSkipVerify)
+	if err != nil {
+		return err
+	}
+
+	cl := &http.Client{
+		Transport: &http.Transport{
+			Proxy:           http.ProxyFromEnvironment,
+			TLSClientConfig: tlsConfig,
+		},
+	}
+
+	w.client = cl
+	w.config = c
+
+	return nil
+}
+
 type Service struct {
-	mu            sync.Mutex
-	defaultConfig Config
-	configs       map[string]Config
-	clients       map[string]http.Client
-	diag          Diagnostic
+	mu         sync.RWMutex
+	workspaces map[string]*Workspace
+	diag       Diagnostic
 }
 
 func NewService(confs []Config, d Diagnostic) (*Service, error) {
 	s := &Service{
-		diag:    d,
-		configs: make(map[string]Config),
-		clients: make(map[string]http.Client),
+		diag:       d,
+		workspaces: make(map[string]*Workspace),
 	}
 
 	for _, c := range confs {
-		s.configs[c.Workspace] = c
-		if c.Default || c.Workspace == "" {
-			// if c.Workspace == "" then there's only one config.  take it as default regardless
-			// of the value given to Default
-			s.defaultConfig = s.configs[c.Workspace]
+
+		if c.InsecureSkipVerify {
+			s.diag.InsecureSkipVerify()
 		}
 
-		tlsConfig, err := tlsconfig.Create(c.SSLCA, c.SSLCert, c.SSLKey, c.InsecureSkipVerify)
+		w, err := NewWorkspace(c)
 		if err != nil {
 			return nil, err
 		}
-		if tlsConfig.InsecureSkipVerify {
-			d.InsecureSkipVerify()
-		}
+		s.workspaces[c.Workspace] = w
 
-		s.clients[c.Workspace] = http.Client{
-			Transport: &http.Transport{
-				Proxy:           http.ProxyFromEnvironment,
-				TLSClientConfig: tlsConfig,
-			},
+		// We'll stash the default workspace with the empty string as a key.
+		// Either there's a single config with no workspace name, or else
+		// we have multiple configs that all have names.
+		if c.Default && c.Workspace != "" {
+			s.workspaces[""] = s.workspaces[c.Workspace]
 		}
 
 	}
@@ -75,65 +124,78 @@ func (s *Service) Close() error {
 	return nil
 }
 
-func (s *Service) config(wid string) (Config, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if wid == "" {
-		return s.defaultConfig, nil
+func (s *Service) workspace(wid string) (*Workspace, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if len(s.workspaces) == 0 {
+		return &Workspace{}, errors.New("no slack configuration found")
 	}
-	v, ok := s.configs[wid]
+	v, ok := s.workspaces[wid]
 	if !ok {
-		return Config{}, errors.New("workspace id not found")
+		return &Workspace{}, errors.New("workspace id not found")
 	}
 	return v, nil
 }
 
+func (s *Service) config(wid string) (Config, error) {
+	w, err := s.workspace(wid)
+	if err != nil {
+		return Config{}, err
+	}
+
+	return w.Config(), nil
+}
+
+func (s *Service) defaultConfig() Config {
+	conf, _ := s.config("")
+	return conf
+}
+
+func (s *Service) client(wid string) (*http.Client, error) {
+	w, err := s.workspace(wid)
+	if err != nil {
+		return &http.Client{}, err
+	}
+	return w.Client(), nil
+}
+
 func (s *Service) Update(newConfigs []interface{}) error {
 
-	if c, ok := newConfigs[0].(Config); !ok {
-		return fmt.Errorf("expected config object to be of type %T, got %T", c, newConfigs[0])
-	} else {
-		s.mu.Lock()
-		defer s.mu.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-		for _, v := range newConfigs {
-			c = v.(Config)
-			s.configs[c.Workspace] = c
-			if c.Default || c.Workspace == "" {
-				// if c.Workspace == "" then there's only one config.  take it as default regardless
-				// of the value given to Default
-				s.defaultConfig = c
-			}
-			tlsConfig, err := tlsconfig.Create(c.SSLCA, c.SSLCert, c.SSLKey, c.InsecureSkipVerify)
-			if err != nil {
-				return err
-			}
-			if tlsConfig.InsecureSkipVerify {
-				s.diag.InsecureSkipVerify()
+	for _, v := range newConfigs {
+		if conf, ok := v.(Config); ok {
+			_, ok := s.workspaces[conf.Workspace]
+			if !ok {
+				w, err := NewWorkspace(conf)
+				s.workspaces[conf.Workspace] = w
+				if err != nil {
+					return err
+				}
+			} else {
+				s.workspaces[conf.Workspace].Update(conf)
 			}
 
-			s.clients[c.Workspace] = http.Client{
-				Transport: &http.Transport{
-					Proxy:           http.ProxyFromEnvironment,
-					TLSClientConfig: tlsConfig,
-				},
+			// We'll stash the default workspace with the empty string as a key.
+			// Either there's a single config with no workspace name, or else
+			// we have multiple configs that all have names.
+			if conf.Default && conf.Workspace != "" {
+				s.workspaces[""] = s.workspaces[conf.Workspace]
 			}
-
+		} else {
+			return fmt.Errorf("expected config object to be of type %T, got %T", v, conf)
 		}
 	}
 	return nil
 }
 
 func (s *Service) Global() bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.defaultConfig.Global
+	return s.defaultConfig().Global
 }
 
 func (s *Service) StateChangesOnly() bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.defaultConfig.StateChangesOnly
+	return s.defaultConfig().Global
 }
 
 // slack attachment info
@@ -176,7 +238,12 @@ func (s *Service) Alert(workspace, channel, message, username, iconEmoji string,
 	if err != nil {
 		return err
 	}
-	client := s.clients[workspace]
+
+	client, err := s.client(workspace)
+	if err != nil {
+		return err
+	}
+
 	resp, err := client.Post(url, "application/json", post)
 	if err != nil {
 		return err
@@ -226,7 +293,6 @@ func (s *Service) preparePost(workspace, channel, message, username, iconEmoji s
 		Mrkdwn_in: []string{"text"},
 	}
 	postData := make(map[string]interface{})
-	postData["workspace"] = c.Workspace
 	postData["as_user"] = false
 	postData["channel"] = channel
 	postData["text"] = ""

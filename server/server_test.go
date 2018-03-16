@@ -9153,7 +9153,7 @@ func TestServer_DoServiceTest(t *testing.T) {
 			options: client.ServiceTestOptions{},
 			exp: client.ServiceTestResult{
 				Success: false,
-				Message: "service is not enabled",
+				Message: "no slack configuration found",
 			},
 		},
 		{

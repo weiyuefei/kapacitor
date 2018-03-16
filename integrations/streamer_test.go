@@ -8501,10 +8501,9 @@ stream
 		slacktest.Request{
 			URL: "/test/slack/url",
 			PostData: slacktest.PostData{
-				Workspace: "",
-				Channel:   "@jim",
-				Username:  "kapacitor",
-				Text:      "",
+				Channel:  "@jim",
+				Username: "kapacitor",
+				Text:     "",
 				Attachments: []slacktest.Attachment{
 					{
 						Fallback:  "kapacitor/cpu/serverA is CRITICAL",
@@ -8518,10 +8517,9 @@ stream
 		slacktest.Request{
 			URL: "/test/slack/url2",
 			PostData: slacktest.PostData{
-				Workspace: "company_private",
-				Channel:   "#alerts",
-				Username:  "kapacitor",
-				Text:      "",
+				Channel:  "#alerts",
+				Username: "kapacitor",
+				Text:     "",
 				Attachments: []slacktest.Attachment{
 					{
 						Fallback:  "kapacitor/cpu/serverA is CRITICAL",
