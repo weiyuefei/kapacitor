@@ -194,7 +194,7 @@ func (s *Service) TestOptions() interface{} {
 		Cluster: "example",
 		Topic:   "test",
 		Key:     "key",
-		Message: "test alert message",
+		Message: "test kafka message",
 	}
 }
 

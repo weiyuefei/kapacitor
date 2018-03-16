@@ -1785,7 +1785,7 @@ func (h *SNMPTrapHandler) validate() error {
 //         |alert()
 //             .kafka()
 //                 .cluster('default')
-//                 .topic('alerts')
+//                 .kafkaTopic('alerts')
 //
 //
 // tick:property
@@ -1806,7 +1806,7 @@ type KafkaHandler struct {
 	Cluster string `json:"cluster"`
 
 	// Kafka Topic
-	Topic string `json:"topic"`
+	KafkaTopic string `json:"kafka-topic"`
 
 	// Template used to construct the message body
 	// If empty the alert data in JSON is sent as the message body.
